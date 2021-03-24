@@ -52,11 +52,10 @@ def calculateSimilarity():
         otherUrls = request.form['urls'].split()
 
         mainKeywords = findKeywordsFromUrl(mainUrl)
-        similarityScores, otherSitesKeywords = preCalculatedSimilarityScores(mainUrl, mainKeywords, otherUrls)
-        sortedSimilarityScores = sortDict(similarityScores, True)
-        return render_template('CalculateSimilarity.html', result = sortedSimilarityScores , mainSiteKeywordsResult = mainKeywords, otherSitesKeywordsResult = otherSitesKeywords)
+        similarityScores = preCalculatedSimilarityScores(mainUrl, mainKeywords, otherUrls)
+        return render_template('CalculateSimilarity.html', result = similarityScores)
     else:
-        return render_template('CalculateSimilarity.html', result = None, mainSiteKeywordsResult = None, otherSitesKeywordsResult = None)
+        return render_template('CalculateSimilarity.html', result = None)
 
 @app.route('/Indexing', methods = ['POST', 'GET'])
 def Indexing():
@@ -65,7 +64,7 @@ def Indexing():
         otherUrls = request.form['urls'].split() # diğer urllerde string listesi olarak gelsin
         mainSiteKeywords = findKeywordsFromUrl(mainUrl)
         subLinkSimilarity = dict()
-        recursiveIndexing(mainUrl, mainSiteKeywords, mainUrl, otherUrls, 1, 2, subLinkSimilarity)
+        recursiveIndexing(mainUrl, mainSiteKeywords, mainUrl, otherUrls, 3, 5, subLinkSimilarity)
         print(subLinkSimilarity)
 
         return render_template('Indexing.html', result = None)
@@ -73,21 +72,22 @@ def Indexing():
         return render_template('Indexing.html', result = None)
 
 def recursiveIndexing(mainUrl, mainSiteKeywords, parent, otherUrls, maximumLevel, maxSubLink, dictionary):
-    #dictionary[parent] = otherUrls
-    if maximumLevel > 3:
+    if maximumLevel < 1:
         return
 
     print(maximumLevel)
-    dictionary[parent], x = preCalculatedSimilarityScores(mainUrl, mainSiteKeywords, otherUrls)
+    dictionary[parent] = preCalculatedSimilarityScores(mainUrl, mainSiteKeywords, otherUrls)
+    #dictionary[parent] = otherUrls
 
 
+    
     for url in otherUrls:
         try:
-            recursiveIndexing(mainUrl, mainSiteKeywords, url, findSubLinks(url , maxSubLink), maximumLevel+1, maxSubLink, dictionary)
+            recursiveIndexing(mainUrl, mainSiteKeywords, url, findSubLinks(url , maxSubLink), maximumLevel-1, maxSubLink, dictionary)
         except:
-            print("Dalda Hata oldu!")
             continue
-    
+
+
 def preCalculatedSimilarityScores(mainUrl, mainSiteKeywords, otherUrls):
     otherSitesKeywords = dict()
     
@@ -102,6 +102,7 @@ def preCalculatedSimilarityScores(mainUrl, mainSiteKeywords, otherUrls):
 
         for keyword, count in mainSiteKeywords.items():
             if keywords.get(keyword):
+                print(keyword)
                 mainFrequencySqSum = mainFrequencySqSum + count ** 2
                 siteFrequencySqSum = siteFrequencySqSum + keywords[keyword] ** 2
            
@@ -111,9 +112,9 @@ def preCalculatedSimilarityScores(mainUrl, mainSiteKeywords, otherUrls):
         if mainFrequencyFactor == 0 or siteFrequencyFactor == 0:
             similarityScores[site] = 0
         else:
-            similarityScores[site] = ((mainFrequencyFactor * siteFrequencyFactor) / (mainFrequencyFactor ** 2 + siteFrequencyFactor ** 2 - mainFrequencyFactor * siteFrequencyFactor))
+            similarityScores[site] = ((mainFrequencyFactor * siteFrequencyFactor) / (mainFrequencyFactor ** 2 + siteFrequencyFactor ** 2 - mainFrequencyFactor * siteFrequencyFactor)) * 100
 
-    return similarityScores, otherSitesKeywords
+    return similarityScores
 
 
 def htmlToPlainText(url):
@@ -167,15 +168,6 @@ def calculateWordsCount(filteredWords):
         sortedWordsCount[w] = wordsCount[w]
 
     return sortedWordsCount
-
-def sortDict(dictionary, isReverse):
-    sortedDict = {}
-    sortedKeys = sorted(dictionary, key=dictionary.get, reverse = True)
-
-    for w in sortedKeys:
-        sortedDict[w] = dictionary[w]
-
-    return sortedDict
 
 def findKeywords(words):
     numberOfKeyword = 10

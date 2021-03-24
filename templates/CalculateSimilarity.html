@@ -17,12 +17,32 @@
                 <textarea name="urls" cols="40" rows="10"></textarea>
                 <p><input type = "submit" class="pure-button pure-button-primary" value = "submit" /></p>
             </form>
+
+        {% if mainSiteKeywordsResult != None %}
+            <table class="pure-table">
+                <thead>
+                    <tr>
+                        <th>Word</th>
+                        <th>Count</th>
+                    </tr>
+                </thead>
+                <tbody>
+                {% for key, value in mainSiteKeywordsResult.items() %}
+                <tr>
+                    <td> {{ key }} </td>
+                    <td> {{ value }} </td>
+                </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        {% endif %}
     
         {% if result != None %}
         <table class="pure-table">
             <thead>
                 <tr>
                     <th>Site</th>
+                    <th>Including Keywords</th>
                     <th>Similarity Score</th>
                 </tr>
             </thead>
@@ -30,6 +50,25 @@
             {% for key, value in result.items() %}
             <tr>
                 <td> {{ key }} </td>
+                <td> 
+                    <table class = "pure-table">
+                        {% if otherSitesKeywordsResult != None %}
+                            {% for word, count in otherSitesKeywordsResult[key].items() %}
+                                {% if mainSiteKeywordsResult != None and mainSiteKeywordsResult.get(word) %}
+                                    <tr style="background-color:#FF0000">
+                                        <td> {{ word }} </td>
+                                        <td> {{ count }} </td>
+                                    </tr>
+                                {% else %}
+                                    <tr>
+                                        <td> {{ word }} </td>
+                                        <td> {{ count }} </td>
+                                    </tr>
+                                {% endif %}
+                            {% endfor %}
+                        {% endif %}
+                    </table>
+                </td>
                 <td> {{ value }} </td>
             </tr>
             {% endfor %}
