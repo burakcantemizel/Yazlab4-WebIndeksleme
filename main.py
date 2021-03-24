@@ -1,6 +1,6 @@
 from flask import Flask, render_template, request
 from bs4 import BeautifulSoup
-import requests
+#import requests
 import re
 import collections
 import stopwords
@@ -8,20 +8,24 @@ import nltk
 import math
 import lxml
 import cchardet
+import grequests
 #import asyncio
 from requests_html import HTMLSession,AsyncHTMLSession
 from anytree import Node, RenderTree
 import nltk
 from nltk.corpus import wordnet
 
+#from werkzeug.middleware.profiler import ProfilerMiddleware
+
+
 nltk.download('wordnet')
-requests_session = requests.Session()
+requests_session = grequests.Session()
 #asession = AsyncHTMLSession()
 
 session = HTMLSession()
 
 app = Flask(__name__)
-
+#app.wsgi_app = ProfilerMiddleware(app.wsgi_app, profile_dir="./app.profile")
 
 
 @app.route('/CalculateFrequency', methods = ['POST', 'GET'])
@@ -224,7 +228,20 @@ def findSubLinks(url, maxSubLink):
     else:
         return list(linkler)[:maxSubLink]
     
-
+def findSubLinks2(url, maxSubLink):
+    html = requests_session.get(url)
+    soup = BeautifulSoup(html.content, 'lxml')
+    links = []
+    
+    i = 0
+    for link in soup.findAll('a', attrs={'href': re.compile("^http://")}):
+        if not link.endswith('.pdf', '.jpg', '.png', '.jpeg', '.gif'):
+            i = i + 1
+            links.append(link.get('href'))
+            print("test 1")
+            if maxSubLink != -1 and i >= maxSubLink : break
+    print("test 2")
+    return links
 
 def playground():
    pass

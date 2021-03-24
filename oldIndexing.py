@@ -39,33 +39,7 @@ async def findSubLinksTest(url, maxSubLink):
     #print(list(linkler)[:maxSubLink])
     return list(linkler)[:maxSubLink]
 
-def preCalculatedSimilarityScoresTest(mainUrl, mainSiteKeywords, otherUrls):
-    otherSitesKeywords = dict()
-    
-    for url in otherUrls:
-        otherSitesKeywords[url] = findKeywordsFromUrl(url)
 
-    similarityScores = dict()
-
-    for site, keywords in otherSitesKeywords.items():
-        mainFrequencySqSum = 0
-        siteFrequencySqSum = 0
-
-        for keyword, count in mainSiteKeywords.items():
-            if keywords.get(keyword):
-                print(keyword)
-                mainFrequencySqSum = mainFrequencySqSum + count ** 2
-                siteFrequencySqSum = siteFrequencySqSum + keywords[keyword] ** 2
-           
-        mainFrequencyFactor = math.sqrt(mainFrequencySqSum)
-        siteFrequencyFactor = math.sqrt(siteFrequencySqSum)
-
-        if mainFrequencyFactor == 0 or siteFrequencyFactor == 0:
-            similarityScores[site] = 0
-        else:
-            similarityScores[site] = (mainFrequencyFactor * siteFrequencyFactor) / (mainFrequencyFactor ** 2 + siteFrequencyFactor ** 2 - mainFrequencyFactor * siteFrequencyFactor) * 100
-
-    return similarityScores
 
 
 async def preCalculatedSimilarityScores(mainUrl, mainSiteKeywords, otherUrls):
@@ -159,3 +133,21 @@ def calculateSimilarityScores(mainUrl, otherUrls):
             similarityScores[site] = (mainFrequencyFactor * siteFrequencyFactor) / (mainFrequencyFactor ** 2 + siteFrequencyFactor ** 2 - mainFrequencyFactor * siteFrequencyFactor) * 100
 
     return similarityScores
+
+    
+"""
+tree = {}
+
+level1Dict = {}
+for level1Url in otherUrls: #1. seviyedeki urlleri requestleyip alt linklerini alıp dicte ekleyeceğiz
+    level1Dict[level1Url] = None #1. seviye linkler köke ekleniyor girilen url dizisinden elde ediliyorlar
+        
+#ilk seviyede 1. seviye tüm linkleri aynı anda requestliyoruz
+tree[mainUrl] = level1Dict
+
+rs = (grequests.get(key) for key, value in level1Dict.items())
+i = 0
+for response in grequests.map(rs):
+tree[tree.keys()[i]] = findSubLinks2(response, 2)
+i = i + 1
+""""
