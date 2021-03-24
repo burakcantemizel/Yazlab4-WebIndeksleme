@@ -11,7 +11,10 @@ import cchardet
 #import asyncio
 from requests_html import HTMLSession,AsyncHTMLSession
 from anytree import Node, RenderTree
+import nltk
+from nltk.corpus import wordnet
 
+nltk.download('wordnet')
 requests_session = requests.Session()
 #asession = AsyncHTMLSession()
 
@@ -71,6 +74,17 @@ def Indexing():
         return render_template('Indexing.html', result = None)
     else:
         return render_template('Indexing.html', result = None)
+
+@app.route('/Semantics', methods = ['POST', 'GET'])
+def Semantics():
+    if request.method == 'POST':
+        mainUrl = request.form['url'] #url string olarak geliyor
+        #otherUrls = request.form['urls'].split() # diğer urllerde string listesi olarak gelsin
+        mainKeywords = findKeywordsFromUrl(mainUrl)
+        semanticKeywords= findSemanticsKeywords(mainKeywords)
+        return render_template('Semantics.html', mainKeywordsResult = mainKeywords, semanticsKeywordsResult = semanticKeywords)
+    else:
+        return render_template('Semantics.html', result = None, semanticsKeywordsResult = None)
 
 def recursiveIndexing(mainUrl, mainSiteKeywords, parent, otherUrls, maximumLevel, maxSubLink, dictionary):
     #dictionary[parent] = otherUrls
@@ -188,6 +202,15 @@ def findKeywordsFromUrl(url):
     wordsFrequency = calculateWordsCount(words)
     keywords = findKeywords(wordsFrequency)
     return keywords
+
+def findSemanticsKeywords(keywords):
+    semanticsKeywords = dict()
+
+    for key, value in keywords.items():
+        syns = wordnet.synsets(key)
+        semanticsKeywords[key] = syns[0].lemmas()[0].name().replace("_"," ").replace("-"," ").lower().strip()
+
+    return semanticsKeywords
 
 def findSubLinks(url, maxSubLink):
     #html = requests_session.get(url)
