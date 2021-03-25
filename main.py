@@ -60,7 +60,7 @@ def calculateSimilarity():
     if request.method == 'POST':
         mainUrl = request.form['url']
         otherUrls = request.form['urls'].split()
-
+        
         mainKeywords = findKeywordsFromUrl(mainUrl)
         similarityScores, otherSitesKeywords = preCalculatedSimilarityScores(mainUrl, mainKeywords, otherUrls)
         sortedSimilarityScores = sortDict(similarityScores, True)
@@ -73,20 +73,39 @@ def Indexing():
     if request.method == 'POST':
         mainUrl = request.form['url'] #url string olarak geliyor
         otherUrls = request.form['urls'].split() # diğer urllerde string listesi olarak gelsin
+        maxSubLink = request.form['maxSubLink']
+
         mainSiteKeywords = findKeywordsFromUrl(mainUrl)
         root = Node('root')
-        recursiveIndexing(mainUrl, mainSiteKeywords, root, otherUrls, 1, 3, root)
+        recursiveIndexing(mainUrl, mainSiteKeywords, root, otherUrls, 1, int(maxSubLink), root)
+
         exporter = DictExporter()
-        print(exporter.export(root))
-        """
+        localScoreDict = exporter.export(root)
+        #print(localScoreDict)
+        #print("\n\n")
+        calculateWeightedScore(localScoreDict)
+        print(localScoreDict)
+        
         for pre, fill, node in RenderTree(root):
             print("%s%s" % (pre, node.name))
-        """
+        
 
         return render_template('Indexing.html', result = None)
     else:
         return render_template('Indexing.html', result = None)
 
+
+def calculateWeightedScore(localScoreDict):
+    if "children" in localScoreDict:
+        for level1 in localScoreDict["children"]: # root içinde level1 dallar
+            level1["name"]["score"] = level1["name"]["score"] * 3
+            #print(level1["name"]["score"]) # 1. dalların skoru bunu 2. dalda ve 3.dalda güncelleyeceğiz
+            if "children" in level1:
+                for level2 in level1["children"]: #level1 içinde level2 dallar
+                    level1["name"]["score"] = level1["name"]["score"] + level2["name"]["score"] * 2
+                    if "children" in level2:
+                        for level3 in  level2["children"]:
+                            level1["name"]["score"] = level1["name"]["score"] + level3["name"]["score"] * 1
 
 def recursiveIndexing(mainUrl, mainSiteKeywords, parentNode, otherUrls, level, maxSubLink, tree):
     #dictionary[parent] = await preCalculatedSimilarityScores(mainUrl, mainSiteKeywords, otherUrls)
