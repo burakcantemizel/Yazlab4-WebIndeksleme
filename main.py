@@ -14,6 +14,7 @@ from requests_html import HTMLSession,AsyncHTMLSession
 import nltk
 from nltk.corpus import wordnet
 from anytree import Node, RenderTree
+from anytree.exporter import DictExporter
 
 #from werkzeug.middleware.profiler import ProfilerMiddleware
 from gevent import monkey
@@ -73,11 +74,14 @@ def Indexing():
         mainUrl = request.form['url'] #url string olarak geliyor
         otherUrls = request.form['urls'].split() # diğer urllerde string listesi olarak gelsin
         mainSiteKeywords = findKeywordsFromUrl(mainUrl)
-        root = Node({'url': mainUrl, 'score': 0})
-        recursiveIndexing(mainUrl, mainSiteKeywords, root, otherUrls, 1, 5, root)
-
+        root = Node('root')
+        recursiveIndexing(mainUrl, mainSiteKeywords, root, otherUrls, 1, 3, root)
+        exporter = DictExporter()
+        print(exporter.export(root))
+        """
         for pre, fill, node in RenderTree(root):
             print("%s%s" % (pre, node.name))
+        """
 
         return render_template('Indexing.html', result = None)
     else:
@@ -87,28 +91,28 @@ def Indexing():
 def recursiveIndexing(mainUrl, mainSiteKeywords, parentNode, otherUrls, level, maxSubLink, tree):
     #dictionary[parent] = await preCalculatedSimilarityScores(mainUrl, mainSiteKeywords, otherUrls)
     print("test")
-    """
-    altAgac = dict()
-    for url in otherUrls:
-        altAgac.update({url : None})
-    """
-
+    
     parentNodes = []
-    localScores, _ = preCalculatedSimilarityScores(mainUrl, mainSiteKeywords, otherUrls)
-    #print(localScores)
-    k = 0
-    for url in otherUrls:
-        parentNodes.append(Node({'url': url, 'score': localScores[url]}, parent = parentNode))
-        k = k + 1
+        
+
+        
     #dictionary[parent] = altAgac
     #dictionary[parent], x = preCalculatedSimilarityScores(mainUrl, mainSiteKeywords, otherUrls)
     
-    if level > 2: #birinci seviyede ana urllerle karşılaştırıcaz, 2. seviyede ana urlnin altındaki 2. seviye linklerle karşılaştırıcaz 3. de 3. seviyedeki linklerle karşılaştırcaz
-        return
+    
 
     rs = (grequests.get(url) for url in otherUrls)
     i = 0
     for response in grequests.map(rs):
+        #localscorları burda hesaplasak
+        localScore = preCalculatedSimilarityScoresResponse(mainUrl, mainSiteKeywords, response)
+        parentNodes.append(Node({'url': response.url, 'score': localScore}, parent = parentNode))
+        #parentNodes[i].score = localScore
+
+        if level > 2: #birinci seviyede ana urllerle karşılaştırıcaz, 2. seviyede ana urlnin altındaki 2. seviye linklerle karşılaştırıcaz 3. de 3. seviyedeki linklerle karşılaştırcaz
+            return
+        #parentNodes[i](score = localScore)
+        #parentNodes[i].update({'score': localScore})
         try:
             recursiveIndexing(mainUrl, mainSiteKeywords, parentNodes[i], findSubLinks2(response , maxSubLink), level+1, maxSubLink, tree)
             i = i + 1
@@ -116,7 +120,7 @@ def recursiveIndexing(mainUrl, mainSiteKeywords, parentNode, otherUrls, level, m
             #loop.run_until_complete(await recursiveIndexing(mainUrl, mainSiteKeywords, url, findSubLinks(url , maxSubLink), maximumLevel-1, maxSubLink, dictionary))
         except:
             print("hata")
-            recursiveIndexing(mainUrl, mainSiteKeywords, parentNodes[i], [], level+1, maxSubLink, tree)
+            #recursiveIndexing(mainUrl, mainSiteKeywords, parentNodes[i], [], level+1, maxSubLink, tree)
             i = i + 1
             continue
 
@@ -126,6 +130,7 @@ def findSubLinks2(response, maxSubLink):
     
     i = 0
     for link in soup.findAll('a', attrs={'href': re.compile("^http://")}):
+            if link.get('href').lower().endswith('.pdf'): continue
             i = i + 1
             links[link.get('href')] = None
             if maxSubLink != -1 and i >= maxSubLink : break
@@ -144,7 +149,7 @@ def Semantics():
 """
 def recursiveIndexing(mainUrl, mainSiteKeywords, parent, otherUrls, maximumLevel, maxSubLink, dictionary):
     #dictionary[parent] = otherUrls
-    if maximumLevel > 3:
+    if maximumLevel > 4:
         return
 
     print(maximumLevel)
@@ -181,12 +186,45 @@ def preCalculatedSimilarityScores(mainUrl, mainSiteKeywords, otherUrls):
         if mainFrequencyFactor == 0 or siteFrequencyFactor == 0:
             similarityScores[site] = 0
         else:
-            similarityScores[site] = ((mainFrequencyFactor * siteFrequencyFactor) / (mainFrequencyFactor ** 2 + siteFrequencyFactor ** 2 - mainFrequencyFactor * siteFrequencyFactor))
+            similarityScores[site] = ((mainFrequencyFactor * siteFrequencyFactor) / (mainFrequencyFactor ** 2 + siteFrequencyFactor ** 2 - mainFrequencyFactor * siteFrequencyFactor)) 
 
     return similarityScores, otherSitesKeywords
 
+def preCalculatedSimilarityScoresResponse(mainUrl, mainSiteKeywords, response):
+    #bu metod tekrar düzenlenecek
+    otherSiteKeywords = findKeywordsFromUrlResponse(response) # anahtar kelime dicti
+    
+    mainFrequencySqSum = 0
+    siteFrequencySqSum = 0
+
+    for okeyword, ocount in otherSiteKeywords.items(): #dieğr anahtar kelimeleri dolaşıyoruz
+        for keyword, count in mainSiteKeywords.items(): # ana anahtar kelimeleri dolaşıyoru
+            if okeyword == keyword:
+                #print("ortak kelime bulundu")
+                #print(okeyword)
+                mainFrequencySqSum = mainFrequencySqSum + count ** 2
+                siteFrequencySqSum = siteFrequencySqSum + ocount ** 2
+           
+        mainFrequencyFactor = math.sqrt(mainFrequencySqSum)
+        siteFrequencyFactor = math.sqrt(siteFrequencySqSum)
+
+        if mainFrequencyFactor == 0 or siteFrequencyFactor == 0:
+            similarityScore = 0
+        else:
+            similarityScore = ((mainFrequencyFactor * siteFrequencyFactor) / (mainFrequencyFactor ** 2 + siteFrequencyFactor ** 2 - mainFrequencyFactor * siteFrequencyFactor)) * 100
+
+    return similarityScore
+
 def htmlToPlainText(url):
     html = requests_session.get(url).text #Complexity !!! Requestsi test et
+    soup = BeautifulSoup(html, "lxml")
+
+    plainText = soup.get_text().strip().lower()
+
+    return plainText
+
+def htmlToPlainTextResponse(response):
+    html = response.text #Complexity !!! Requestsi test et
     soup = BeautifulSoup(html, "lxml")
 
     plainText = soup.get_text().strip().lower()
@@ -253,6 +291,13 @@ def findKeywords(words):
 
 def findKeywordsFromUrl(url):
     plainText = htmlToPlainText(url)
+    words = filterWordsForKeywords(filterWordsForFrequency(plainTextToWords(plainText)))
+    wordsFrequency = calculateWordsCount(words)
+    keywords = findKeywords(wordsFrequency)
+    return keywords
+
+def findKeywordsFromUrlResponse(response):
+    plainText = htmlToPlainTextResponse(response)
     words = filterWordsForKeywords(filterWordsForFrequency(plainTextToWords(plainText)))
     wordsFrequency = calculateWordsCount(words)
     keywords = findKeywords(wordsFrequency)
