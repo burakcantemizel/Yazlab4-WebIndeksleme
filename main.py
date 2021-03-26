@@ -14,9 +14,10 @@ from requests_html import HTMLSession,AsyncHTMLSession
 import nltk
 from nltk.corpus import wordnet
 from anytree import Node, RenderTree
-from anytree.exporter import DictExporter
+from anytree.exporter import DictExporter,JsonExporter
+from urllib.parse import urljoin
 
-#from werkzeug.middleware.profiler import ProfilerMiddleware
+from werkzeug.middleware.profiler import ProfilerMiddleware
 from gevent import monkey
 monkey.patch_all()
 
@@ -28,7 +29,7 @@ requests_session = grequests.Session()
 session = HTMLSession()
 
 app = Flask(__name__)
-#app.wsgi_app = ProfilerMiddleware(app.wsgi_app, profile_dir="./app.profile")
+app.wsgi_app = ProfilerMiddleware(app.wsgi_app, profile_dir="./")
 
 
 @app.route('/CalculateFrequency', methods = ['POST', 'GET'])
@@ -80,32 +81,39 @@ def Indexing():
         recursiveIndexing(mainUrl, mainSiteKeywords, root, otherUrls, 1, int(maxSubLink), root)
 
         exporter = DictExporter()
-        localScoreDict = exporter.export(root)
+        generalScoreDict = exporter.export(root)
         #print(localScoreDict)
         #print("\n\n")
-        calculateWeightedScore(localScoreDict)
-        print(localScoreDict)
+        calculateWeightedScore(generalScoreDict)
+        #print(generalScoreDict)
         
-        for pre, fill, node in RenderTree(root):
-            print("%s%s" % (pre, node.name))
+        exporter = JsonExporter(indent=2, sort_keys=False)
+        treeJson = exporter.export(root)
+        #print(type(treeJson))
+
+        #for pre, fill, node in RenderTree(root):
+        #    print("%s%s" % (pre, node.name))
         
 
-        return render_template('Indexing.html', result = None)
+        return render_template('Indexing.html', result = None, tree = treeJson)
     else:
-        return render_template('Indexing.html', result = None)
+        return render_template('Indexing.html', result = None, tree = None)
 
 
 def calculateWeightedScore(localScoreDict):
     if "children" in localScoreDict:
         for level1 in localScoreDict["children"]: # root içinde level1 dallar
-            level1["name"]["score"] = level1["name"]["score"] * 3
+            #level1["name"]["score"] = level1["name"]["score"] * 3
             #print(level1["name"]["score"]) # 1. dalların skoru bunu 2. dalda ve 3.dalda güncelleyeceğiz
             if "children" in level1:
                 for level2 in level1["children"]: #level1 içinde level2 dallar
-                    level1["name"]["score"] = level1["name"]["score"] + level2["name"]["score"] * 2
+                    #level1["name"]["score"] = level1["name"]["score"] + level2["name"]["score"] * 2
+                    level1["name"]["generalScore"] = level1["name"]["generalScore"] + level2["name"]["localScore"]
                     if "children" in level2:
                         for level3 in  level2["children"]:
-                            level1["name"]["score"] = level1["name"]["score"] + level3["name"]["score"] * 1
+                            #level1["name"]["score"] = level1["name"]["score"] + level3["name"]["score"] * 1
+                            level1["name"]["generalScore"] = level1["name"]["generalScore"] + level3["name"]["localScore"]
+                            level2["name"]["generalScore"] = level2["name"]["generalScore"] + level3["name"]["localScore"]
 
 def recursiveIndexing(mainUrl, mainSiteKeywords, parentNode, otherUrls, level, maxSubLink, tree):
     #dictionary[parent] = await preCalculatedSimilarityScores(mainUrl, mainSiteKeywords, otherUrls)
@@ -118,14 +126,22 @@ def recursiveIndexing(mainUrl, mainSiteKeywords, parentNode, otherUrls, level, m
     #dictionary[parent] = altAgac
     #dictionary[parent], x = preCalculatedSimilarityScores(mainUrl, mainSiteKeywords, otherUrls)
     
+    validUrls = []
+
+    rsmetalist = (grequests.head(url) for url in otherUrls)
+    for rsmeta in grequests.map(rsmetalist):
+        if "text/html" in rsmeta.headers["content-type"]:
+            #print("2test")
+            validUrls.append(rsmeta.url)
+
     
 
-    rs = (grequests.get(url) for url in otherUrls)
+    rs = (grequests.get(url) for url in validUrls)
     i = 0
     for response in grequests.map(rs):
         #localscorları burda hesaplasak
-        localScore = preCalculatedSimilarityScoresResponse(mainUrl, mainSiteKeywords, response)
-        parentNodes.append(Node({'url': response.url, 'score': localScore}, parent = parentNode))
+        localScore , otherKeywords  = preCalculatedSimilarityScoresResponse(mainUrl, mainSiteKeywords, response)
+        parentNodes.append(Node({'url': response.url, 'localScore': localScore, 'generalScore': localScore , 'keywords' : otherKeywords}, parent = parentNode))
         #parentNodes[i].score = localScore
 
         if level > 2: #birinci seviyede ana urllerle karşılaştırıcaz, 2. seviyede ana urlnin altındaki 2. seviye linklerle karşılaştırıcaz 3. de 3. seviyedeki linklerle karşılaştırcaz
@@ -145,13 +161,21 @@ def recursiveIndexing(mainUrl, mainSiteKeywords, parentNode, otherUrls, level, m
 
 def findSubLinks2(response, maxSubLink):
     soup = BeautifulSoup(response.content, 'lxml')
-    links = {}
+    links = []
     
     i = 0
-    for link in soup.findAll('a', attrs={'href': re.compile("^http://")}):
-            if link.get('href').lower().endswith('.pdf'): continue
+    #for link in soup.findAll('a', attrs={'href': re.compile("^http://")}):
+    for link in soup.findAll('a', attrs={'href': re.compile("")}):
+            print("alt link araniyor")
+            #if link.get('href').lower().endswith('.pdf'): continue
+            #if link.get('href').lower().endswith('.gif'): continue
+            #if link.get('href').lower().endswith('.svg'): continue
+            #if link.get('href').lower().endswith('.ogg'): continue
             i = i + 1
-            links[link.get('href')] = None
+            print(response.url)
+            #print
+            link = urljoin(response.url, link.get('href'))
+            links.append(link)
             if maxSubLink != -1 and i >= maxSubLink : break
     return links
 
@@ -232,7 +256,7 @@ def preCalculatedSimilarityScoresResponse(mainUrl, mainSiteKeywords, response):
         else:
             similarityScore = ((mainFrequencyFactor * siteFrequencyFactor) / (mainFrequencyFactor ** 2 + siteFrequencyFactor ** 2 - mainFrequencyFactor * siteFrequencyFactor)) * 100
 
-    return similarityScore
+    return similarityScore , otherSiteKeywords
 
 def htmlToPlainText(url):
     html = requests_session.get(url).text #Complexity !!! Requestsi test et

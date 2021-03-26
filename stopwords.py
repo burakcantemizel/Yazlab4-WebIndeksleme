@@ -171,7 +171,9 @@ english = [
     "your",
     "yours",
     "yourself",
-    "yourselves"
+    "yourselves",
+    "isbn",
+    "pp"
 ]
 
 

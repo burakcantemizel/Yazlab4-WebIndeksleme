@@ -3,8 +3,6 @@ from bs4 import BeautifulSoup
 import re
 
 def recursiveIndexingTest(mainUrl, mainSiteKeywords, parent, otherUrls, level, maxSubLink, dictionary):
-
-
     #dictionary[parent] = await preCalculatedSimilarityScores(mainUrl, mainSiteKeywords, otherUrls)
     altAgac = dict()
     for url in otherUrls:

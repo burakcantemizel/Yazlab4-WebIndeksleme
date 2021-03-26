@@ -5,6 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Calculate Similarity</title>
     <link rel="stylesheet" href="https://unpkg.com/purecss@2.0.5/build/pure-min.css" integrity="sha384-LTIDeidl25h2dPxrB2Ekgc9c7sEC3CWGM6HeFmuDNUjX76Ert4Z4IY714dhZHPLd" crossorigin="anonymous">
+    <script type=text/javascript src="{{
+        url_for('static', filename='library/json-viewer.js') }}"></script>
+        <link rel="stylesheet" href="{{ url_for('static',filename='styles/json-viewer.css')}}">
 </head>
 <body>
     <div class="pure-g">
@@ -38,6 +41,20 @@
             </tbody>
         </table>
         {% endif %}
+
+        {% if tree != None %}
+        <div id="json"></div>
+        <script>
+            console.log("test")
+            var data = {{ tree | tojson }}; 
+            data = JSON.parse(data);
+            var jsonViewer = new JSONViewer();
+            document.querySelector("#json").appendChild(jsonViewer.getContainer());
+            jsonViewer.showJSON(data);            
+        </script>
+        {% endif %}
+
+
         </div>
     </div>
 </body>
