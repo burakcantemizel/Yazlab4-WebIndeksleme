@@ -166,14 +166,13 @@ def findSubLinks2(response, maxSubLink):
     i = 0
     #for link in soup.findAll('a', attrs={'href': re.compile("^http://")}):
     for link in soup.findAll('a', attrs={'href': re.compile("")}):
-            print("alt link araniyor")
+            #print("alt link araniyor")
             #if link.get('href').lower().endswith('.pdf'): continue
             #if link.get('href').lower().endswith('.gif'): continue
             #if link.get('href').lower().endswith('.svg'): continue
             #if link.get('href').lower().endswith('.ogg'): continue
             i = i + 1
-            print(response.url)
-            #print
+            #print(response.url)
             link = urljoin(response.url, link.get('href'))
             links.append(link)
             if maxSubLink != -1 and i >= maxSubLink : break
@@ -240,6 +239,13 @@ def preCalculatedSimilarityScoresResponse(mainUrl, mainSiteKeywords, response):
     mainFrequencySqSum = 0
     siteFrequencySqSum = 0
 
+    ##burda 2 dictten birini gezip o anahtar kelime diğerinde var mı diye bakacağız
+    for keyword, count in mainSiteKeywords.items():
+        if otherSiteKeywords.get(keyword):
+            mainFrequencySqSum = mainFrequencySqSum + count ** 2
+            siteFrequencySqSum = siteFrequencySqSum + otherSiteKeywords.get(keyword) ** 2
+
+    """
     for okeyword, ocount in otherSiteKeywords.items(): #dieğr anahtar kelimeleri dolaşıyoruz
         for keyword, count in mainSiteKeywords.items(): # ana anahtar kelimeleri dolaşıyoru
             if okeyword == keyword:
@@ -247,14 +253,15 @@ def preCalculatedSimilarityScoresResponse(mainUrl, mainSiteKeywords, response):
                 #print(okeyword)
                 mainFrequencySqSum = mainFrequencySqSum + count ** 2
                 siteFrequencySqSum = siteFrequencySqSum + ocount ** 2
-           
-        mainFrequencyFactor = math.sqrt(mainFrequencySqSum)
-        siteFrequencyFactor = math.sqrt(siteFrequencySqSum)
+    """
 
-        if mainFrequencyFactor == 0 or siteFrequencyFactor == 0:
-            similarityScore = 0
-        else:
-            similarityScore = ((mainFrequencyFactor * siteFrequencyFactor) / (mainFrequencyFactor ** 2 + siteFrequencyFactor ** 2 - mainFrequencyFactor * siteFrequencyFactor)) * 100
+    mainFrequencyFactor = math.sqrt(mainFrequencySqSum)
+    siteFrequencyFactor = math.sqrt(siteFrequencySqSum)
+
+    if mainFrequencyFactor == 0 or siteFrequencyFactor == 0:
+        similarityScore = 0
+    else:
+        similarityScore = ((mainFrequencyFactor * siteFrequencyFactor) / (mainFrequencyFactor ** 2 + siteFrequencyFactor ** 2 - mainFrequencyFactor * siteFrequencyFactor)) * 100
 
     return similarityScore , otherSiteKeywords
 
