@@ -44,6 +44,9 @@
 
         {% if tree != None %}
         <div id="json"></div>
+        <div id="order">
+            <p id = "list">test</p>
+        </div>
         <script>
             console.log("test")
             var data = {{ tree | tojson }}; 
@@ -52,6 +55,25 @@
             document.querySelector("#json").appendChild(jsonViewer.getContainer());
             jsonViewer.showJSON(data);            
         </script>
+        {% endif %}
+
+        {% if order != None %}
+        <table class="pure-table">
+            <thead>
+                <tr>
+                    <th>Site</th>
+                    <th>Similarity Score(General)</th>
+                </tr>
+            </thead>
+            <tbody>
+            {% for key, value in order.items() %}
+            <tr>
+                <td> {{ key }} </td>
+                <td> {{ value }} </td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
         {% endif %}
 
 

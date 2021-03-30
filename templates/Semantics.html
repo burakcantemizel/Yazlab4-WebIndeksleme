@@ -5,23 +5,32 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Semantics</title>
     <link rel="stylesheet" href="https://unpkg.com/purecss@2.0.5/build/pure-min.css" integrity="sha384-LTIDeidl25h2dPxrB2Ekgc9c7sEC3CWGM6HeFmuDNUjX76Ert4Z4IY714dhZHPLd" crossorigin="anonymous">
+    <script type=text/javascript src="{{
+        url_for('static', filename='library/json-viewer.js') }}"></script>
+        <link rel="stylesheet" href="{{ url_for('static',filename='styles/json-viewer.css')}}">
 </head>
 <body>
     <div class="pure-g">
         <div class="pure-u-1">
             <h1>Semantics</h1>
             <form class = "pure-form" action = "http://localhost:5000/Semantics" method = "post">
-                <p>Give url:</p>
+                <p>Give url::</p>
                 <p><input type = "text" name = "url" /></p>
+                <p>Give urls::</p>
+                <textarea name="urls" cols="40" rows="10"></textarea>
+                <p>Max sublinks count::</p>
+                <p><input type = "text" name = "maxSubLink" value="5" /></p>
                 <p><input type = "submit" class="pure-button pure-button-primary" value = "submit" /></p>
             </form>
     
-        {% if mainKeywordsResult != None %}
+        {% if mainKeywordsResult != None and semanticsKeywordsResult != None %}
             <table class="pure-table">
                 <thead>
                     <tr>
                         <th>Word</th>
                         <th>Count</th>
+                        <th>Semantic 1</th>
+                        <th>Semantic 2</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -29,28 +38,24 @@
                 <tr>
                     <td> {{ key }} </td>
                     <td> {{ value }} </td>
+                    <td> {{ semanticsKeywordsResult1[key] }}</td>
+                    <td> {{ semanticsKeywordsResult2[key] }}</td>
                 </tr>
                 {% endfor %}
                 </tbody>
             </table>
         {% endif %}
-        {% if semanticsKeywordsResult != None %}
-            <table class="pure-table">
-                <thead>
-                    <tr>
-                        <th>Word</th>
-                        <th>Semantic</th>
-                    </tr>
-                </thead>
-                <tbody>
-                {% for key, value in semanticsKeywordsResult.items() %}
-                <tr>
-                    <td> {{ key }} </td>
-                    <td> {{ value }} </td>
-                </tr>
-                {% endfor %}
-                </tbody>
-            </table>
+
+        {% if tree != None %}
+        <div id="json"></div>
+        <script>
+            console.log("test")
+            var data = {{ tree | tojson }}; 
+            data = JSON.parse(data);
+            var jsonViewer = new JSONViewer();
+            document.querySelector("#json").appendChild(jsonViewer.getContainer());
+            jsonViewer.showJSON(data);            
+        </script>
         {% endif %}
         </div>
     </div>

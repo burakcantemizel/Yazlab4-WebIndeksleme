@@ -237,3 +237,35 @@ if __name__ == '__main__':
     """
 
     app.run()
+
+    """
+     ##Test Kısmı
+    mainUrl = "https://en.wikipedia.org/wiki/Fernando_Muslera"
+    otherUrls = "https://en.wikipedia.org/wiki/Soviet_Union https://en.wikipedia.org/wiki/Nazi_Germany".split()
+    mainKeywords = findKeywordsFromUrl(mainUrl)
+    tree = {}
+
+    #örnek dict
+    #(url : alt urller)
+
+    #root = Node("root")
+
+    #Siteden Post atıldığında aşağıdaki işlemler sırası ile gerçekleşecek
+    #rs = (grequests.get(u) for u in otherUrls)
+    #print(rs)
+    """
+    """
+    for level1 in otherUrls:
+        level1Node = Node(level1, parent = root)
+        #Her url için benzerlik hesaplaması yapılacak
+        #Her urlnin alt linkleri bulunup ağaçta onun altına eklenecek
+        
+        for level2 in findSubLinks(level1, subLinkCount):
+            
+            level2Node = Node(level2, parent = level1Node)
+            for level3 in findSubLinks(level2, subLinkCount):
+                level3Node = Node(level3, parent = level2Node)
+    
+    for pre, fill, node in RenderTree(root):
+        print("%s%s" % (pre, node.name))
+    """
