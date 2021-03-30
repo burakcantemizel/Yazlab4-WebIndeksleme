@@ -14,12 +14,12 @@
         <div class="pure-u-1">
             <h1>Indexing</h1>
             <form class = "pure-form" action = "http://localhost:5000/Indexing" method = "post">
-                <p>Give url::</p>
+                <p>Please Enter Url</p>
                 <p><input type = "text" name = "url" /></p>
-                <p>Give urls::</p>
+                <p>Please Enter Url Set</p>
                 <textarea name="urls" cols="40" rows="10"></textarea>
-                <p>Max sublinks count::</p>
-                <p><input type = "text" name = "maxSubLink" value="5" /></p>
+                <p>Max Sublinks</p>
+                <p><input type = "text" name = "maxSubLink" value="10" /></p>
                 <p><input type = "submit" class="pure-button pure-button-primary" value = "submit" /></p>
             </form>
     
@@ -43,6 +43,7 @@
         {% endif %}
 
         {% if tree != None %}
+        <h1>Tree View</h1>
         <div id="json"></div>
         <div id="order">
             <p id = "list">test</p>
@@ -58,6 +59,7 @@
         {% endif %}
 
         {% if order != None %}
+        <h1>Similarity Table</h1>
         <table class="pure-table">
             <thead>
                 <tr>

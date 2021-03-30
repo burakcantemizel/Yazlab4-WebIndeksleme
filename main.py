@@ -7,9 +7,10 @@ import stopwords
 import nltk
 import math
 import lxml
-import cchardet
+#import cchardet
 import grequests
 #import asyncio
+from func_timeout import func_timeout, FunctionTimedOut
 from requests_html import HTMLSession,AsyncHTMLSession
 import nltk
 from nltk.corpus import wordnet
@@ -32,7 +33,7 @@ session = HTMLSession()
 app = Flask(__name__)
 #app.wsgi_app = ProfilerMiddleware(app.wsgi_app, profile_dir="./")
 
-@app.route('/index', methods = ['GET'])
+@app.route('/', methods = ['GET'])
 def index():
     return render_template('index.html')
 
@@ -96,10 +97,10 @@ def Indexing():
         #print(type(treeJson))
 
         orders = orderSites(generalScoreDict)
-
+        """
         for pre, fill, node in RenderTree(root):
             print("%s%s" % (pre, node.name))
-        
+        """
 
         return render_template('Indexing.html', result = None, tree = treeJson, order = orders)
     else:
@@ -129,20 +130,32 @@ def orderSites(generalScoreDict):
             #level1["name"]["score"] = level1["name"]["score"] * 3
             #print(level1["name"]["score"]) # 1. dalların skoru bunu 2. dalda ve 3.dalda güncelleyeceğiz
             #Burda birinci seviyeye erişim
-            od[level1["name"]["url"]] = level1["name"]["generalScore"]
+            if level1["name"]["url"] not in od.keys():
+                od[level1["name"]["url"]] = level1["name"]["generalScore"]
+            else:
+                if level1["name"]["generalScore"] > od[level1["name"]["url"]]:
+                    od[level1["name"]["url"]] = level1["name"]["generalScore"]
             if "children" in level1:
                 for level2 in level1["children"]: #level1 içinde level2 dallar
                     #level1["name"]["score"] = level1["name"]["score"] + level2["name"]["score"] * 2
                     #level1["name"]["generalScore"] = level1["name"]["generalScore"] + level2["name"]["localScore"]
                     #Burda ikinci seviyeye erişim
-                    od[level2["name"]["url"]] = level2["name"]["generalScore"]
+                    if level2["name"]["url"] not in od.keys():
+                        od[level2["name"]["url"]] = level2["name"]["generalScore"]
+                    else:
+                        if level2["name"]["generalScore"] > od[level2["name"]["url"]]:
+                            od[level2["name"]["url"]] = level2["name"]["generalScore"]
                     if "children" in level2:
                         for level3 in  level2["children"]:
                             #level1["name"]["score"] = level1["name"]["score"] + level3["name"]["score"] * 1
                             #Burda 3. seviyeye erişim
                             #level1["name"]["generalScore"] = level1["name"]["generalScore"] + level3["name"]["localScore"]
                             #level2["name"]["generalScore"] = level2["name"]["generalScore"] + level3["name"]["localScore"]
-                            od[level3["name"]["url"]] = level3["name"]["generalScore"]
+                            if level3["name"]["url"] not in od.keys():
+                                od[level3["name"]["url"]] = level3["name"]["generalScore"]
+                            else:
+                                if level3["name"]["generalScore"] > od[level3["name"]["url"]]:
+                                    od[level3["name"]["url"]] = level3["name"]["generalScore"]
     
    
 
@@ -156,18 +169,30 @@ def recursiveIndexing(mainUrl, mainSiteKeywords, parentNode, otherUrls, level, m
     #dictionary[parent], x = preCalculatedSimilarityScores(mainUrl, mainSiteKeywords, otherUrls)
     
     validUrls = []
-
+    """
     rsmetalist = (grequests.head(url) for url in otherUrls)
-    for rsmeta in grequests.map(rsmetalist):
-        if "text/html" in rsmeta.headers["content-type"]:
-            #print("2test")
-            validUrls.append(rsmeta.url)
-
     
+    try:
+        for rsmeta in grequests.map(rsmetalist):
+            print("****")
+            print(rsmeta.url)
+            
+            if "text/html" in rsmeta.headers["content-type"]:
+                validUrls.append(rsmeta.url)
+    except:
+        print("Url kontrolünde hata!")
 
-    rs = (grequests.get(url) for url in validUrls)
+    print(validUrls)
+    """
+    if level > 3: #birinci seviyede ana urllerle karşılaştırıcaz, 2. seviyede ana urlnin altındaki 2. seviye linklerle karşılaştırıcaz 3. de 3. seviyedeki linklerle karşılaştırcaz
+        return
+    
+    rs = (grequests.get(url, timeout=5) for url in otherUrls)
+
+
     i = 0
-    for response in grequests.map(rs):
+    for response in grequests.map(rs, exception_handler=request_hatasi):
+
         #localscorları burda hesaplasak
         if level <= 3:
             localScore , otherKeywords  = preCalculatedSimilarityScoresResponse(mainUrl, mainSiteKeywords, response)
@@ -181,13 +206,18 @@ def recursiveIndexing(mainUrl, mainSiteKeywords, parentNode, otherUrls, level, m
         try:
             recursiveIndexing(mainUrl, mainSiteKeywords, parentNodes[i], findSubLinks2(response , maxSubLink), level+1, maxSubLink, tree)
             i = i + 1
-            #print("recursive girdi")
+            print("Arama devam ediyor")
             #loop.run_until_complete(await recursiveIndexing(mainUrl, mainSiteKeywords, url, findSubLinks(url , maxSubLink), maximumLevel-1, maxSubLink, dictionary))
         except:
-            print("hata")
+            #print(response.url)
+            print("Bir dal üzerindeki istekte hata oluştu! Dal kesildi.")
+            i = i + 1
             #recursiveIndexing(mainUrl, mainSiteKeywords, parentNodes[i], [], level+1, maxSubLink, tree)
             #i = i + 1
             #continue
+
+def request_hatasi():
+    print("request hatasi")
 
 @app.route('/Semantics', methods = ['POST', 'GET'])
 def Semantics():
@@ -195,14 +225,20 @@ def Semantics():
         mainUrl = request.form['url'] #url string olarak geliyor
         #otherUrls = request.form['urls'].split() # diğer urllerde string listesi olarak gelsin
         otherUrls = request.form['urls'].split() # diğer urllerde string listesi olarak gelsin
+
         mainKeywords = findKeywordsFromUrl(mainUrl)
         semanticKeywords1, semanticKeywords2 = findSemanticsKeywords(mainKeywords)
+
+
         mergeKeywords = addSemanticsKeywords(mainKeywords)
+
+
         maxSubLink = request.form['maxSubLink']
 
         root = Node('root')
         recursiveIndexingSemantics(mainUrl, mergeKeywords, root, otherUrls, 1, int(maxSubLink), root)
 
+        
         exporter = DictExporter()
         generalScoreDict = exporter.export(root)
         #print(localScoreDict)
@@ -214,12 +250,15 @@ def Semantics():
         treeJson = exporter.export(root)
         #print(type(treeJson))
 
+        orders = orderSites(generalScoreDict)
+        
+        """
         for pre, fill, node in RenderTree(root):
             print("%s%s" % (pre, node.name))
-
-        return render_template('Semantics.html', result = None , mainKeywordsResult = mainKeywords, semanticsKeywordsResult1 = semanticKeywords1, semanticsKeywordsResult2 = semanticKeywords2, tree = treeJson)
+        """
+        return render_template('Semantics.html', result = None , mainKeywordsResult = mainKeywords, semanticsKeywordsResult1 = semanticKeywords1, semanticsKeywordsResult2 = semanticKeywords2, tree = treeJson, order = orders)
     else:
-        return render_template('Semantics.html', result = None, mainKeywordsResult = None, semanticsKeywordsResult = None, tree = None)
+        return render_template('Semantics.html', result = None, mainKeywordsResult = None, semanticsKeywordsResult = None, tree = None, order = None)
 
 def recursiveIndexingSemantics(mainUrl, mainSiteKeywords, parentNode, otherUrls, level, maxSubLink, tree):
     #dictionary[parent] = await preCalculatedSimilarityScores(mainUrl, mainSiteKeywords, otherUrls)
@@ -227,7 +266,7 @@ def recursiveIndexingSemantics(mainUrl, mainSiteKeywords, parentNode, otherUrls,
     parentNodes = []
     #dictionary[parent] = altAgac
     #dictionary[parent], x = preCalculatedSimilarityScores(mainUrl, mainSiteKeywords, otherUrls)
-    
+    """
     validUrls = []
 
     rsmetalist = (grequests.head(url) for url in otherUrls)
@@ -237,13 +276,16 @@ def recursiveIndexingSemantics(mainUrl, mainSiteKeywords, parentNode, otherUrls,
             validUrls.append(rsmeta.url)
 
     
+    """
+    if level > 3: #birinci seviyede ana urllerle karşılaştırıcaz, 2. seviyede ana urlnin altındaki 2. seviye linklerle karşılaştırıcaz 3. de 3. seviyedeki linklerle karşılaştırcaz
+        return
 
-    rs = (grequests.get(url) for url in validUrls)
+    rs = (grequests.get(url, timeout=5) for url in otherUrls)
     i = 0
     for response in grequests.map(rs):
         #localscorları burda hesaplasak
         if level <= 3:
-            localScore , otherKeywords  = preCalculatedSimilarityScoresResponseSemantics(mainUrl, mainSiteKeywords, response)
+            localScore , otherKeywords  =  preCalculatedSimilarityScoresResponseSemantics(mainUrl, mainSiteKeywords, response)
             parentNodes.append(Node({'url': response.url, 'localScore': localScore, 'generalScore': localScore , 'keywords' : otherKeywords}, parent = parentNode))
         #parentNodes[i].score = localScore
 
@@ -252,39 +294,57 @@ def recursiveIndexingSemantics(mainUrl, mainSiteKeywords, parentNode, otherUrls,
         #parentNodes[i](score = localScore)
         #parentNodes[i].update({'score': localScore})
         try:
-            recursiveIndexing(mainUrl, mainSiteKeywords, parentNodes[i], findSubLinks2(response , maxSubLink), level+1, maxSubLink, tree)
+            recursiveIndexingSemantics(mainUrl, mainSiteKeywords, parentNodes[i], findSubLinks2(response , maxSubLink), level+1, maxSubLink, tree)
             i = i + 1
+            print("Arama devam ediyor")
             #print("recursive girdi")
             #loop.run_until_complete(await recursiveIndexing(mainUrl, mainSiteKeywords, url, findSubLinks(url , maxSubLink), maximumLevel-1, maxSubLink, dictionary))
         except:
-            print("hata")
+            print("Bir dal üzerindeki istekte hata oluştu! Dal kesildi.")
             #recursiveIndexing(mainUrl, mainSiteKeywords, parentNodes[i], [], level+1, maxSubLink, tree)
-            #i = i + 1
+            i = i + 1
             #continue
 
 def findSubLinks2(response, maxSubLink):
     soup = BeautifulSoup(response.content, 'lxml')
-    linksSet = {}
+
+    allLinks = set()
     links = []
     
     i = 0
     #for link in soup.findAll('a', attrs={'href': re.compile("^http://")}):
-    for link in soup.findAll('a', attrs={'href': re.compile("^http://")}):
+    for line in soup.findAll('a'):
             #print("alt link araniyor")
             #if link.get('href').lower().endswith('.pdf'): continue
             #if link.get('href').lower().endswith('.gif'): continue
             #if link.get('href').lower().endswith('.svg'): continue
             #if link.get('href').lower().endswith('.ogg'): continue
-            i = i + 1
+            
             #print(response.url)
-            link = urljoin(response.url, link.get('href'))
-            #if(link.get('href') != response.url):
+            link = line.get('href')
+            if not link:
+                continue
+            if link.startswith('http'):
+                #harici link 
+                if link != response.url:
+                    allLinks.add(link)
+            else:
+                #dahili link
+                newLink = urljoin(response.url, link)
+                if newLink != response.url:
+                    allLinks.add(newLink)
+            i = i + 1
+            #link = urljoin(response.url, link.get('href'))
+            #print(response.url)
+            #if response.url is not link['href']:
+            #    links.append(link['href'])
+            
             #links.append(link.get('href'))
-            links.append(link)
-            if maxSubLink != -1 and i >= maxSubLink : break
+            
+            if maxSubLink != -1 and i > maxSubLink : break
 
-    print(links)
-    return links
+    #print(links)
+    return list(allLinks)
 
 
 """
@@ -327,14 +387,14 @@ def preCalculatedSimilarityScores(mainUrl, mainSiteKeywords, otherUrls):
         if mainFrequencyFactor == 0 or siteFrequencyFactor == 0:
             similarityScores[site] = 0
         else:
-            similarityScores[site] = ((mainFrequencyFactor * siteFrequencyFactor) / (mainFrequencyFactor ** 2 + siteFrequencyFactor ** 2 - mainFrequencyFactor * siteFrequencyFactor)) 
+            similarityScores[site] = ((mainFrequencyFactor * siteFrequencyFactor) / (mainFrequencyFactor ** 2 + siteFrequencyFactor ** 2 - mainFrequencyFactor * siteFrequencyFactor)) * 100
 
     return similarityScores, otherSitesKeywords
 
 def preCalculatedSimilarityScoresResponse(mainUrl, mainSiteKeywords, response):
     #bu metod tekrar düzenlenecek
     otherSiteKeywords = findKeywordsFromUrlResponse(response) # anahtar kelime dicti
-    
+    print(otherSiteKeywords)
     mainFrequencySqSum = 0
     siteFrequencySqSum = 0
 
@@ -368,6 +428,8 @@ def preCalculatedSimilarityScoresResponseSemantics(mainUrl, mainSiteKeywords, re
     #bu metod tekrar düzenlenecek
     otherSiteKeywords = findKeywordsFromUrlResponse(response) # anahtar kelime dicti
     otherSiteSemanticsKeywords = addSemanticsKeywords(otherSiteKeywords)
+
+    #print(otherSiteSemanticsKeywords)
     
     mainFrequencySqSum = 0
     siteFrequencySqSum = 0
@@ -406,6 +468,8 @@ def htmlToPlainText(url):
 
     return plainText
 
+""
+
 def htmlToPlainTextResponse(response):
     html = response.text #Complexity !!! Requestsi test et
     soup = BeautifulSoup(html, "lxml")
@@ -423,7 +487,7 @@ def filterWordsForFrequency(words):
     filteredWords = []
 
     minimumChars = 1
-    maximumChars = 40 #Longest Word in English has 44 characters
+    maximumChars = 44 #Longest Word in English has 44 characters
 
     for word in words:
         if (len(word) > minimumChars or word == "a") and len(word) < maximumChars and word.isdigit() == False:
@@ -496,14 +560,21 @@ def findSemanticsKeywords(keywords):
             synsElement = syns[0]
             if len(synsElement.lemmas()) > 1:
                 for i in range(2):
-                    lemmasElement = synsElement.lemmas()[i].name().replace("_"," ").replace("-"," ").lower().strip()
+                    lemmasElement = synsElement.lemmas()[i].name().lower().strip()
                     if i == 0:
                         semanticsKeywords1[key] = lemmasElement
                     elif i == 1:
                         semanticsKeywords2[key] = lemmasElement
             elif len(synsElement.lemmas()) > 0:
-                lemmasElement = synsElement.lemmas()[0].name().replace("_"," ").replace("-"," ").lower().strip()
-                semanticsKeywords1[lemmasElement] = value
+                lemmasElement = synsElement.lemmas()[0].name().lower().strip()
+                semanticsKeywords1[key] = lemmasElement
+                semanticsKeywords2[key] = None
+            else:
+                semanticsKeywords1[key] = None
+                semanticsKeywords2[key] = None
+        else:
+            semanticsKeywords1[key] = None
+            semanticsKeywords2[key] = None
 
     return semanticsKeywords1, semanticsKeywords2
 
@@ -516,10 +587,10 @@ def addSemanticsKeywords(keywords):
             synsElement = syns[0]
             if len(synsElement.lemmas()) > 1:
                 for i in range(2):
-                    lemmasElement = synsElement.lemmas()[i].name().replace("_"," ").replace("-"," ").lower().strip()
+                    lemmasElement = synsElement.lemmas()[i].name().lower().strip()
                     semanticsKeywords[lemmasElement] = value
             elif len(synsElement.lemmas()) > 0:
-                lemmasElement = synsElement.lemmas()[0].name().replace("_"," ").replace("-"," ").lower().strip()
+                lemmasElement = synsElement.lemmas()[0].name().lower().strip()
                 semanticsKeywords[lemmasElement] = value
         
     mergeKeywords = {**keywords, **semanticsKeywords} # Dictleri birleştiriyoruz

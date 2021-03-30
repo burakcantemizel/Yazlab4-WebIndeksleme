@@ -11,12 +11,13 @@
         <div class="pure-u-1">
             <h1>Find Keywords</h1>
             <form class = "pure-form" action = "http://localhost:5000/FindKeywords" method = "post">
-                <p>Give url:</p>
+                <p>Please Enter Url</p>
                 <p><input type = "text" name = "url" /></p>
-                <p><input type = "submit" class="pure-button pure-button-primary" value = "submit" /></p>
+                <p><input type = "submit" class="pure-button pure-button-primary" value = "Submit" /></p>
             </form>
     
         {% if result != None %}
+            <h1>Keywords Table</h1>
             <table class="pure-table">
                 <thead>
                     <tr>
