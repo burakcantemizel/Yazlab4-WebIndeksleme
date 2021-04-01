@@ -102,7 +102,7 @@ def Indexing():
             print("%s%s" % (pre, node.name))
         """
 
-        return render_template('Indexing.html', result = None, tree = treeJson, order = orders)
+        return render_template('Indexing.html', result = mainSiteKeywords, tree = treeJson, order = orders)
     else:
         return render_template('Indexing.html', result = None, tree = None, order = None)
 

@@ -27,8 +27,8 @@
         <table class="pure-table">
             <thead>
                 <tr>
-                    <th>Site</th>
-                    <th>Similarity Score</th>
+                    <th>Keyword</th>
+                    <th>Count</th>
                 </tr>
             </thead>
             <tbody>
@@ -49,7 +49,6 @@
             <p id = "list">test</p>
         </div>
         <script>
-            console.log("test")
             var data = {{ tree | tojson }}; 
             data = JSON.parse(data);
             var jsonViewer = new JSONViewer();
